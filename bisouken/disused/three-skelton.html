@@ -1,0 +1,260 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+       <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.152.2/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.152.2/examples/jsm/"
+        }
+      }
+    </script>
+    
+    <script type="module">
+      import * as THREE from "three";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+      //import { FontLoader } from "three/addons/loaders/FontLoader.js";
+      //import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
+      //import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+      import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
+      import { TransformControls } from 'three/addons/controls/TransformControls.js';
+      import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+
+      // サイズを指定
+      const width = innerWidth;
+      const height = innerHeight;
+
+      // レンダラーを作成
+      const canvasElement = document.querySelector("#myCanvas");
+      const renderer = new THREE.WebGLRenderer({
+        canvas: document.querySelector('#myCanvas'), //背景のグラデーションを反映、最下段の<canvas>タグのIDがmyCanvas,cssは上段の<style>内
+        alpha: false
+      });
+      renderer.setSize(width.innerWidth, height.innerHeight);
+
+      // シーンを作成
+      const scene = new THREE.Scene();
+
+      // カメラを作成
+      const camera = new THREE.PerspectiveCamera(45, width.innerWidth / height.innerHeight);
+      // カメラの初期座標を設定
+      camera.position.set( 0, 0, 500);
+
+      // カメラコントローラーを作成
+      const controls = new OrbitControls(camera, canvasElement);
+
+      // 画像を読み込む
+      const loadPic = new THREE.TextureLoader();
+      //レイキャスター 
+      const raycaster = new THREE.Raycaster();
+      const pointer = new THREE.Vector2();
+      const canvas = document.querySelector('#myCanvas');
+      const mouse = new THREE.Vector2();
+      canvas.addEventListener('mousemove', handleMouseMove);
+
+      function handleMouseMove(event) {
+        const element = event.currentTarget;
+        // canvas要素上のXY座標
+        const x = event.clientX - element.offsetLeft;
+        const y = event.clientY - element.offsetTop;
+        // canvas要素の幅・高さ
+        const w = element.offsetWidth;
+        const h = element.offsetHeight;
+
+        // -1〜+1の範囲で現在のマウス座標を登録する
+        mouse.x = ( x / w ) * 2 - 1;
+        mouse.y = -( y / h ) * 2 + 1;
+        }
+
+      //ライト
+      const directionalLight1 = new THREE.DirectionalLight(0xffffff);
+      const directionalLight2 = new THREE.DirectionalLight(0xffff00);
+      const directionalLight3 = new THREE.DirectionalLight(0x18da18);
+      const directionalLight4 = new THREE.DirectionalLight(0x7503ff);
+      directionalLight1.position.set(1, 1, 1);
+      directionalLight2.position.set(1, 1, 1);
+      directionalLight3.position.set(1, 1, 1);
+      directionalLight4.position.set(1, 1, 1);
+      // シーンに追加
+      scene.add(directionalLight1);
+      scene.add(directionalLight2);
+      scene.add(directionalLight3);
+      scene.add(directionalLight4);
+
+       // ボックスを作成
+       const material = new THREE.MeshPhongMaterial({color: 0xf8f8f8, envMaps: "reflection"});
+       const sphereGeometry = new THREE.SphereGeometry(60, 32, 32);
+       const ball = new THREE.Mesh(sphereGeometry, material);
+       scene.add(ball);
+
+        // ライトのヘルパーを作成
+        var dLightHelper1 = new THREE.DirectionalLight(directionalLight1);
+        scene.add(dLightHelper1);
+        var dLightHelper2 = new THREE.DirectionalLight(directionalLight2);
+        scene.add(dLightHelper2);
+        var dLightHelper3 = new THREE.DirectionalLight(directionalLight3);
+        scene.add(dLightHelper3);
+        var dLightHelper4 = new THREE.DirectionalLight(directionalLight4);
+        scene.add(dLightHelper4);
+
+        // カメラのヘルパーを作成
+        var cameraHelper = new THREE.CameraHelper(camera);
+        scene.add(cameraHelper);
+
+        // 球体のヘルパーを作成
+        var ballHelper = new THREE.BoxHelper(ball, 0xffff00);
+        scene.add(ballHelper);
+
+        // TransformControlsを作成
+        var transformControlsLight1 = new TransformControls(camera, renderer.domElement);
+        transformControlsLight1.attach(directionalLight1);
+        scene.add(transformControlsLight1);
+        var transformControlsLight2 = new TransformControls(camera, renderer.domElement);
+        transformControlsLight2.attach(directionalLight2);
+        scene.add(transformControlsLight2);
+        var transformControlsLight3 = new TransformControls(camera, renderer.domElement);
+        transformControlsLight1.attach(directionalLight3);
+        scene.add(transformControlsLight3);
+        var transformControlsLight4 = new TransformControls(camera, renderer.domElement);
+        transformControlsLight1.attach(directionalLight4);
+        scene.add(transformControlsLight4);
+        
+        var transformControlsCamera = new TransformControls(camera, renderer.domElement);
+        transformControlsCamera.attach(camera);
+        scene.add(transformControlsCamera);
+
+        var transformControlsBall = new TransformControls(camera, renderer.domElement);
+        transformControlsBall.attach(ball);
+        scene.add(transformControlsBall);
+
+        
+  
+      // マウス移動イベントを追加します
+      /*
+      let INTERSECTED;
+      window.addEventListener('mousemove', (event) => {
+            // マウスの位置を正規化します
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            // レイキャスターを更新します
+            raycaster.setFromCamera(mouse, camera);
+
+            // メッシュとの交差点を計算します
+            const intersects = raycaster.intersectObjects(scene.children);           
+            
+            // 交差点がある場合、メッシュの色を変更します
+            if (intersects.length > 0) {
+                if (INTERSECTED != intersects[0].object) {
+            // マウスオーバーしているメッシュが変わった場合、以前のメッシュの色を戻します
+                if (INTERSECTED) {
+                    INTERSECTED.material.color.set(INTERSECTED.userData.defaultColor);
+                    // 以前のテキストの色も戻します
+                    for (var i = 0; i < meshTextPairs.length; i++) {
+                        if (meshTextPairs[i].mesh === INTERSECTED) {
+                            meshTextPairs[i].text.material.color.set(0xffffff); // デフォルトの白色に戻します
+                        }
+                    }
+                }
+                // 新しくマウスオーバーしているメッシュの色を変更します
+                INTERSECTED = intersects[0].object;
+                if (!INTERSECTED.userData.doNotChangeColor) {
+                    INTERSECTED.material.color.set(0xff0000); // 赤色に変更
+                    document.body.style.cursor = 'pointer';
+                    //INTERSECTED.material.needsUpdate = true;  // この行を追加
+                }
+
+                // 対応するテキストを表示し、赤くします
+                for (var i = 0; i < meshTextPairs.length; i++) {
+                    if (meshTextPairs[i].mesh === INTERSECTED) {
+                        meshTextPairs[i].text.visible = true;
+                        meshTextPairs[i].text.material.color.set(0xff0000); // 赤色に変更
+                    } else {
+                        meshTextPairs[i].text.visible = false;
+                    }
+                }
+            } 
+        } else {
+            // マウスオーバーしているメッシュがない場合、以前のメッシュの色を戻します
+            if (INTERSECTED) {
+                INTERSECTED.material.color.set(INTERSECTED.userData.defaultColor);
+                // 以前のテキストの色も戻します
+                for (var i = 0; i < meshTextPairs.length; i++) {
+                    if (meshTextPairs[i].mesh === INTERSECTED) {
+                        meshTextPairs[i].text.material.color.set(0xffffff); // デフォルトの白色に戻します
+                        document.body.style.cursor = 'default';
+                    }
+                }
+            }
+            INTERSECTED = null;
+
+            // 全てのテキストを非表示にします
+            for (var i = 0; i < meshTextPairs.length; i++) {
+                meshTextPairs[i].text.visible = false;
+            }
+            }
+        });
+
+        window.addEventListener('click', (event) => {
+            // マウスの位置を正規化します
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            // レイキャスターを更新します
+            raycaster.setFromCamera(mouse, camera);
+
+            // メッシュとの交差点を計算します
+            const intersects = raycaster.intersectObjects(scene.children);
+
+            // 交差点がある場合、リンクにジャンプします
+            if (intersects.length > 0) {
+                window.parent.location.href = intersects[0].object.userData.url;
+            }
+        });
+        */
+    
+        // アニメーション関数を作成
+        function animate() {
+        requestAnimationFrame(animate);
+        
+        // 球体を回転させる
+
+        ball.rotation.z = +0.001;
+        
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+      // 初期化のために実行
+      onResize();
+      // リサイズイベント発生時に実行
+      window.addEventListener("resize", onResize);
+
+      function onResize() {
+        // サイズを取得
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        // レンダラーのサイズを調整する
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(width, height);
+
+        // カメラのアスペクト比を正す
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="myCanvas">
+    </canvas>
+  </body>
+</html>

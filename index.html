@@ -2,11 +2,75 @@
 <html>
     <head>
         <meta charset="UTF-8">
+        <style>
+        body {
+            margin: 0;
+            width: 100vw;
+            height:100vh;
+            background-image: url("./GSFC_20171208_Archive_e002076~large.jpg");
+            overflow: hidden;
+        }
+
+        #wrap {
+            max-width: 80%;
+            margin:0 auto;
+        }
+
+        .menuContainer {
+            position:absolute;
+            top:40%;
+            left:50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .projectName {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+        }
+
+
+        h1, .title {
+            color: #fff;
+            text-align: center;
+        }
+
+        h2, .contents {
+            margin: 3em;
+            color:#fff;
+            text-align: center;
+        }
+
+        a {
+            color:#fff;
+        }
+
+        a:visited {
+            color:#c4e587;
+        }
+
+        a:hover {
+            color:aqua;
+        }
+
+        
+        </style>
     </head>
     <body>
         <div id="wrap">
-            <h1>testProject</h1>
-            <h2><a href="./AR">ARproject</a></h2>
-        </div>
+            <div class="menuContainer">
+                    <h1 class="titile">testProject</h1>
+                        <div class="projectName">
+                            <h2 class="contents"><a href="./AR">ARproject</a></h2>
+                            <h2 class="contents"><a href="./fetch">Fetch</a></h2>
+                            <h2 class="contents"><a href="./bisouken">Bisoken</a></h2>
+                        </div>
+            </div>
+        </div>  
     </body>
 </html>
