@@ -28,7 +28,7 @@ const renderer = new THREE.WebGLRenderer({
   canvas: canvasElement,
   alpha: false
 });
-renderer.setClearColor(0xffba9d, 1);
+renderer.setClearColor(0x080808, 1);
 renderer.setSize(Three.width, Three.height);
 
 // シーンを作成
@@ -42,34 +42,18 @@ camera.lookAt(new THREE.Vector3(0, 0, 0));
 // カメラコントローラーを作成
 const controls = new OrbitControls(camera, canvasElement);
 
-const raycaster = new THREE.Raycaster();  // Raycasterの作成
-const mouse = new THREE.Vector2();  // マウスの2Dスクリーン座標
-
-// マウスムーブイベントでカーソルの位置を取得
+// カーソルの位置を追跡するための変数
+const mouse = new THREE.Vector2();
 window.addEventListener('mousemove', (event) => {
-  // マウスのスクリーン座標を正規化 (-1 から 1)
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-  // Raycasterを使ってマウスの位置を3Dワールド空間に変換
-  raycaster.setFromCamera(mouse, camera);  // カメラに基づいてスクリーン座標をワールド座標に変換
-
-  // 3D空間上の位置を取得するため、ゼロ平面（z = 0）との交点を取得
-  const intersects = raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), new THREE.Vector3());
-
-  if (intersects) {
-    // シェーダーに渡すマウスの3D位置を更新
-    shaderMaterial.uniforms.mouse.value.set(intersects.x, intersects.y);
-  }
 });
 
 // シェーダーマテリアルを作成
 const shaderMaterial = new THREE.ShaderMaterial({
   uniforms: {
     time: { value: 0.0 },
-    mouse: { value: new THREE.Vector2(0, 0) }, // マウスの座標をuniformとして渡す
-    color1: { value: new THREE.Color(0xf2ff9d) },  // 最初の色（赤）
-    color2: { value: new THREE.Color(0x9dffac) },  // 2番目の色（青）
+    mouse: { value: new THREE.Vector2() }, // マウスの座標をuniformとして渡す
   },
   fragmentShader: fragmentShader,
   vertexShader: vertexShader,
@@ -85,7 +69,7 @@ const speeds = [];  // ランダムな速度を保持する配列
 for (let i = 0; i < 10000; i++) {
   const x = THREE.MathUtils.randFloatSpread(500);
   const y = THREE.MathUtils.randFloatSpread(500);
-  const z = THREE.MathUtils.randFloatSpread(500);
+  const z = THREE.MathUtils.randFloatSpread(10);
   vertices.push(x, y, z);
 
   // 速度をランダムに設定 (0.5〜2.0の範囲でランダムに設定)
@@ -121,8 +105,7 @@ function animate() {
 
 
   // マウスの座標をシェーダーに渡す
-  shaderMaterial.uniforms.mouse.value.x = mouse.x * 250.0;
-  shaderMaterial.uniforms.mouse.value.y = mouse.y * 250.0;
+  shaderMaterial.uniforms.mouse.value = mouse;
 
   // レンダリング
   renderer.render(scene, camera);

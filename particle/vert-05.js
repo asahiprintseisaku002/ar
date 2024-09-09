@@ -22,12 +22,12 @@ void main() {
     // 距離が近い場合、パーティクルをカーソルから押し出す（円形に押し出す）
     vec3 direction = normalize(pos - mouse3D);  // カーソルとパーティクルの方向を計算
     float strength = (avoidRadius - distance) / avoidRadius;  // 距離に応じて押し出す強さを調整
-    pos += direction * strength * 20.0;  // パーティクルを外側に押し出す
+    pos += direction * strength * 80.0;  // パーティクルを外側に押し出す
   }
 
   //ランダムな速度に基づいて y 座標を時間とともに上昇させる
-  //pos.y += mod(time * speed + position.y, 200.0);  // speedを使用して個別に速度を変更
-  pos.y += time * speed + position.y;
+  pos.y += mod(time * speed + position.y, 200.0);  // speedを使用して個別に速度を変更
+
   // x座標にサイン波を使った左右揺れを追加
   pos.x += sin(time * 2.0 + position.y * 0.1) * 1.2;
 

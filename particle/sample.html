@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Three.js Particle System</title>
+  <style>
+    body { margin: 0; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <script id="vertexShader" type="x-shader/x-vertex">
+    uniform float uTime;
+    attribute float size;
+    
+    void main() {
+      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = size;
+      gl_Position = projectionMatrix * mvPosition;
+    }
+  </script>
+
+  <script id="fragmentShader" type="x-shader/x-fragment">
+    uniform vec3 color;
+    
+    void main() {
+      gl_FragColor = vec4(color, 1.0);
+    }
+  </script>
+
+  <script>
+    // シーン、カメラ、レンダラーを作成
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // パーティクルの数
+    const particleCount = 1000;
+    const particles = new THREE.BufferGeometry();
+
+    // パーティクルの位置データを作成
+    const positions = new Float32Array(particleCount * 3);
+    const sizes = new Float32Array(particleCount);
+
+    for (let i = 0; i < particleCount; i++) {
+      positions[i * 3] = (Math.random() * 2 - 1) * 50; // X座標
+      positions[i * 3 + 1] = (Math.random() * 2 - 1) * 50; // Y座標
+      positions[i * 3 + 2] = (Math.random() * 2 - 1) * 50; // Z座標
+
+      sizes[i] = Math.random() * 10 + 5; // パーティクルのサイズ
+    }
+
+    // 位置とサイズのバッファ属性を設定
+    particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particles.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+    // シェーダーマテリアル
+    const particleMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        color: { value: new THREE.Color(0xffffff) }, // 白い色
+      },
+      vertexShader: document.getElementById('vertexShader').textContent,
+      fragmentShader: document.getElementById('fragmentShader').textContent,
+      transparent: true,
+    });
+
+    // パーティクルメッシュを作成
+    const particleSystem = new THREE.Points(particles, particleMaterial);
+    scene.add(particleSystem);
+
+    // カメラの位置を設定
+    camera.position.z = 100;
+
+    // アニメーションループ
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // パーティクルシステムを少し回転させる
+      particleSystem.rotation.y += 0.002;
+
+      // シーンをレンダリング
+      renderer.render(scene, camera);
+    }
+
+    animate();
+  </script>
+</body>
+</html>
