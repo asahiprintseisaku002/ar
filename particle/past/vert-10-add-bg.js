@@ -1,10 +1,8 @@
 export const vertexShader = `
 uniform float time;
 uniform vec2 mouse;  // カーソルの2D位置（スクリーン座標系）
-uniform bool isMoving;
 attribute float size;  // 各パーティクルの初期サイズ
 attribute float speed; // 各パーティクルの上昇速度
-attribute vec3 targetPosition;  // パーティクルが目指す最終位置
 varying float vAlpha;  // 透明度をフラグメントシェーダーに渡すための変数
 varying vec2 vUv;
 varying float vSize;   // サイズをフラグメントシェーダーに渡す
@@ -33,11 +31,11 @@ void main() {
 
   // パーティクルが時間とともに大きくなる（サイズは5.0までに制限）
   float age = mod(time + position.y, 6.0);  // 出現からの時間 (0〜5の範囲でループ)
-  vSize = size * (age / 5.0);  // 通常のサイズ
-  gl_PointSize = min(vSize, 30.0);  // 最大サイズは50に制限
+  vSize = size * (age / 5.0);  // サイズが徐々に大きくなる
+  gl_PointSize = min(vSize, 50.0);  // 最大サイズは5に制限
 
   // 時間経過とともに透明度が減少する（5秒で完全に消える）
-  vAlpha = 1.0 - (age / 5.0);
+  vAlpha = 1.0 - (age / 10.0);
 
   // カメラ空間に変換
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);

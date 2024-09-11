@@ -33,11 +33,26 @@ void main() {
 
   // パーティクルが時間とともに大きくなる（サイズは5.0までに制限）
   float age = mod(time + position.y, 6.0);  // 出現からの時間 (0〜5の範囲でループ)
-  vSize = size * (age / 5.0);  // 通常のサイズ
-  gl_PointSize = min(vSize, 30.0);  // 最大サイズは50に制限
+
+  // isMoving に基づいてサイズを条件分岐
+  if (isMoving) {
+    vSize = size * (age / 5.0);  // 通常のサイズ
+    gl_PointSize = min(vSize, 50.0);  // 最大サイズは50に制限
+  } else {
+    vSize = size * (age / 8.0);  // パーティクルが小さくなる
+    gl_PointSize = min(vSize, 10.0);  // 最大サイズを20に制限
+  }
+
+  // isMoving に基づいてサイズを条件分岐
+  float targetSize = isMoving ? 20.0 : 50.0;  // 目標サイズを設定
+  float currentSize = size * (age / 5.0);  // 現在のサイズ
+
+  // 現在のサイズと目標サイズの間で補間（0.05は補間のスムーズさを調整）
+  vSize = mix(currentSize, targetSize, 0.05);  // 線形補間でサイズを滑らかに変化させる
+  gl_PointSize = min(vSize, targetSize);  // 最大サイズを目標サイズに制限
 
   // 時間経過とともに透明度が減少する（5秒で完全に消える）
-  vAlpha = 1.0 - (age / 5.0);
+  vAlpha = 1.0 - (age / 10.0);
 
   // カメラ空間に変換
   vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);

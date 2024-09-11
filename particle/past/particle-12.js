@@ -8,7 +8,6 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
 import { fragmentShader } from "./frag.js";
 import { vertexShader } from "./vert.js";
-import { fragmentShader2 } from "./fragGround.js";
 import { vertexShader2 } from "./vertGround.js";
 import { fragBG } from "./fragBG.js";
 import { vertBG } from "./vertBG.js";
@@ -21,7 +20,7 @@ class Three {
     fov: 45,
     aspect: window.innerWidth / window.innerHeight,
     near: 1,
-    far: 8000,
+    far: 4000,
     position: { x: 0, y: 0, z: 400 }
   };
   static light = {
@@ -179,7 +178,7 @@ const backgroundMaterial = new THREE.ShaderMaterial({
 });
 
 // 背景用の大きな平面を作成
-const backgroundGeometry = new THREE.PlaneGeometry(10000, 10000, 1000, 1000);
+const backgroundGeometry = new THREE.PlaneGeometry(10000, 10000);
 const backgroundMesh = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
 backgroundMesh.position.z = -3000;
 scene.add(backgroundMesh);
@@ -191,12 +190,19 @@ scene.add(ambientLight);
 // SVGの座標を非同期で読み込む
 async function loadAndAnimateSVG() {
   svgPoints = await getSVGPoints('./circleoflife.svg');  // SVGを読み込んで座標を取得
+  /*
+  setTimeout(() => {
+    moveToShape = true;  // 秒後にSVG形状への集合を開始
+    shaderMaterial.uniforms.isMoving.value = false;  // 移動が終わったらfalse
+  }, 1200);
+  */
 }
 
 // クリックイベントを追加して、パーティクルの集合をトグルで切り替える
 window.addEventListener('click', () => {
   moveToShape = !moveToShape;  // 集合状態をトグルで切り替え
   isMoving = moveToShape;  // `moveToShape` に基づいて `isMoving` を切り替え
+
   // トグルの際にシェーダー側の `isMoving` も更新
   shaderMaterial.uniforms.isMoving.value = isMoving;
 });
@@ -224,7 +230,7 @@ function animate() {
       positions[i * 3 + 2] = currentPos.z;
     }
     points.rotation.y = 0.0;
-    pointsGroup.position.set(-1200.0, 0.0, -1800.0);
+    pointsGroup.position.set(-1200.0, 0.0, -2800.0);
 
   } else if (!moveToShape) {
     // 初期位置に戻る
