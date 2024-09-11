@@ -103,7 +103,7 @@ window.addEventListener('mousemove', (event) => {
   const intersects = raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), new THREE.Vector3());
 
   if (intersects) {
-    //console.log(intersects.x, intersects.y);  // マウスの位置を確認
+    // シェーダーに渡すマウスの3D位置を更新
     shaderMaterial.uniforms.mouse.value.set(intersects.x, intersects.y);
   }
 });
@@ -169,7 +169,6 @@ pointsGroup.position.set(0.0, 0.0, 0.0);
 const backgroundMaterial = new THREE.ShaderMaterial({
   uniforms: {
     time: { value: 0.0 },
-    mouse: { value: new THREE.Vector2(0, 0) },
     color1: { value: new THREE.Color(0xffe2f4) },  // 赤
     color2: { value: new THREE.Color(0xfff9e2) },  // 緑
     color3: { value: new THREE.Color(0xe2faff) },  // 青
