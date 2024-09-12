@@ -22,8 +22,17 @@ class Three {
     aspect: window.innerWidth / window.innerHeight,
     near: 1,
     far: 8000,
-    position: { x: 0, y: 0, z: 400 }
+    position: { x: 0.0, y: 0.0, z: 0.0 }
   };
+
+  static camera2 = {
+    fov: 45,
+    aspect: window.innerWidth / window.innerHeight,
+    near: 1,
+    far: 8000,
+    position: { x: -1000.0, y: 0.0, z: 2300.0 }
+  };
+
   static light = {
     ambient: 0xffffff,
   };
@@ -84,6 +93,11 @@ const camera = new THREE.PerspectiveCamera(Three.camera.fov, Three.camera.aspect
 camera.position.set(Three.camera.position.x, Three.camera.position.y, Three.camera.position.z);
 camera.lookAt(new THREE.Vector3(0, 0, 0));
 
+// カメラ2の作成
+const camera2 = new THREE.PerspectiveCamera(Three.camera2.fov, Three.camera2.aspect, Three.camera2.near, Three.camera2.far);
+camera2.position.set(Three.camera2.position.x, Three.camera2.position.y, Three.camera2.position.z);
+camera2.lookAt(new THREE.Vector3(0, 0, 0));  // 注視するターゲット
+
 // カメラコントローラーを作成
 //const controls = new OrbitControls(camera, canvasElement);
 
@@ -115,7 +129,7 @@ const shaderMaterial = new THREE.ShaderMaterial({
     mouse: { value: new THREE.Vector2(0, 0) }, // マウスの座標をuniformとして渡す
     color1: { value: new THREE.Color(0xf2ff9d) },  // 最初の色（赤）
     color2: { value: new THREE.Color(0xffffff) },  // 2番目の色（青）
-    isMoving : { value: true }
+    isMoving : { value: false }
   },
   fragmentShader: fragmentShader,
   vertexShader: vertexShader,
@@ -181,9 +195,9 @@ const backgroundMaterial = new THREE.ShaderMaterial({
 });
 
 // 背景用の大きな平面を作成
-const backgroundGeometry = new THREE.PlaneGeometry(10000, 10000, 1000, 1000);
+const backgroundGeometry = new THREE.PlaneGeometry(50000, 50000, 100, 100);
 const backgroundMesh = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
-backgroundMesh.position.z = -3000;
+backgroundMesh.position.z = -100;
 scene.add(backgroundMesh);
 
 // ライト
@@ -203,6 +217,29 @@ window.addEventListener('click', () => {
   shaderMaterial.uniforms.isMoving.value = isMoving;
 });
 
+// カメラの補間用変数
+let currentCameraPosition = new THREE.Vector3(Three.camera.position.x, Three.camera.position.y, Three.camera.position.z);
+let targetCameraPosition = new THREE.Vector3(Three.camera.position.x, Three.camera.position.y, Three.camera.position.z);
+let activeCamera = camera;  // 初期状態はcamera1がアクティブ
+let useCamera2 = false;  // カメラ切り替え用のフラグ
+
+// クリックイベントを追加して、カメラの位置を切り替える
+window.addEventListener('click', () => {
+  useCamera2 = !useCamera2;  // フラグをトグルしてカメラを切り替え
+
+  if (useCamera2) {
+    // カメラ2の位置に補間して移動する
+    targetCameraPosition.set(camera2.position.x, camera2.position.y, camera2.position.z);
+    activeCamera = camera2;  // カメラ2をアクティブにする
+  } else {
+    // カメラ1の位置に補間して戻す
+    targetCameraPosition.set(camera.position.x, camera.position.y, camera.position.z);
+    activeCamera = camera;  // カメラ1をアクティブにする
+  }
+});
+
+const threshold = 0.01;
+
 // アニメーション関数
 function animate() {
   requestAnimationFrame(animate);
@@ -214,43 +251,54 @@ function animate() {
   const positions = geometry.attributes.position.array;
 
   if (moveToShape && svgPoints.length > 0) {
-    // SVGの形に集合する
+    // SVGの形に集合する処理
     for (let i = 0; i < positions.length / 3; i++) {
       const target = svgPoints[i % svgPoints.length];  // SVGのポイントをループで取得
       const currentPos = new THREE.Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
 
-      // 線形補間で徐々に移動
-      currentPos.lerp(target, 0.05);  // 0.05 は移動速度を調整するパラメータ
-      positions[i * 3] = currentPos.x;
-      positions[i * 3 + 1] = currentPos.y;
-      positions[i * 3 + 2] = currentPos.z;
+      // 目標位置までの距離を計算
+      if (currentPos.distanceTo(target) > threshold) {
+        // 線形補間で徐々に移動
+        currentPos.lerp(target, 0.1);  // 補間速度を調整
+        positions[i * 3] = currentPos.x;
+        positions[i * 3 + 1] = currentPos.y;
+        positions[i * 3 + 2] = currentPos.z;
+      } else {
+        // 目標位置に十分近い場合は、目標位置に固定
+        positions[i * 3] = target.x;
+        positions[i * 3 + 1] = target.y;
+        positions[i * 3 + 2] = target.z;
+      }
     }
     points.rotation.y = 0.0;
-    pointsGroup.position.set(-1200.0, 0.0, -1800.0);
-
   } else if (!moveToShape) {
-    // 初期位置に戻る
+    // 初期位置に戻る処理
     for (let i = 0; i < positions.length / 3; i++) {
       const target = initialPositions[i];  // 初期位置を取得
       const currentPos = new THREE.Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
 
       // 線形補間で徐々に初期位置に戻す
-      currentPos.lerp(target, 0.05);  // 0.05 は移動速度を調整するパラメータ
+      currentPos.lerp(target, 0.1);
       positions[i * 3] = currentPos.x;
       positions[i * 3 + 1] = currentPos.y;
       positions[i * 3 + 2] = currentPos.z;
     }
     points.rotation.y += 0.0001;
-    pointsGroup.position.set(0.0, 0.0, 0.0);
   }
+
+  // カメラを滑らかに移動させる
+  currentCameraPosition.lerp(targetCameraPosition, 0.05);  // 0.05は補間速度
+  activeCamera.position.set(currentCameraPosition.x, currentCameraPosition.y, currentCameraPosition.z);
 
   geometry.attributes.position.needsUpdate = true;  // パーティクル位置の更新を通知
 
-  // レンダリング
-  renderer.render(scene, camera);
+  // アクティブなカメラでレンダリングする
+  renderer.render(scene, activeCamera);
 }
+
 loadAndAnimateSVG();
 animate();
+
 
 // リサイズ処理
 function onResize() {
