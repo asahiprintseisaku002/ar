@@ -28,7 +28,6 @@ void main() {
   }
 
   //ランダムな速度に基づいて y 座標を時間とともに上昇させる
-  //pos.y += mod(time * speed + position.y, 200.0);  // speedを使用して個別に速度を変更
   pos.y += time * speed + position.y;
   // x座標にサイン波を使った左右揺れを追加
   pos.x += sin(time * 2.0 + position.y * 0.1) * 1.2;
@@ -53,7 +52,7 @@ void main() {
   vSize = mix(currentSize, targetSize, 0.05);  // 線形補間でサイズを滑らかに変化させる
   gl_PointSize = min(vSize, targetSize);  // 最大サイズを目標サイズに制限
 
-  // 時間経過とともに透明度が減少する（5秒で完全に消える）
+  // 時間経過とともに透明度が減少する
   vAlpha = 1.0 - (age / 8.0);
 
   // カメラ空間に変換

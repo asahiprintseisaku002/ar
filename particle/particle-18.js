@@ -139,6 +139,7 @@ const shaderMaterial = new THREE.ShaderMaterial({
 });
 
 // パーティクルを作成
+let initialPositions = [];  // 初期位置を保持する配列
 let originalPositions = []; 
 let svgPoints = [];
 let moveToShape = false;
@@ -156,13 +157,14 @@ for (let i = 0; i < 20000; i++) {
 
   // 読み込み時の位置として保存（移動後もこの位置に戻すため）
   originalPositions.push(vector.clone());
+  initialPositions.push(vector.clone()); 
 
   // 速度をランダムに設定 (0.5〜2.0の範囲でランダムに設定)
   const speed = Math.random() * 0.9 + 0.1;
   speeds.push(speed);
 }
 
-const geometry = new THREE.BufferGeometry();
+let geometry = new THREE.BufferGeometry();
 geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
 
 // パーティクルのサイズ情報もシェーダーに送る場合は、size属性も追加します
@@ -173,10 +175,10 @@ geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
 geometry.setAttribute('speed', new THREE.Float32BufferAttribute(speeds, 1));  // 各パーティクルの速度
 
 // パーティクルシステムを作成
-const points = new THREE.Points(geometry, shaderMaterial);
+let points = new THREE.Points(geometry, shaderMaterial);
 scene.add(points);
 
-const pointsGroup = new THREE.Group();
+let pointsGroup = new THREE.Group();
 pointsGroup.add(points);
 scene.add(pointsGroup);
 pointsGroup.position.set(0.0, 0.0, 0.0);
@@ -223,11 +225,13 @@ window.addEventListener('click', () => {
   isMoving = moveToShape;
   shaderMaterial.uniforms.isMoving.value = isMoving;
 
+  resetParticleSystem();
+/*
   // isMovingがtrueになるときに読み込み時の初期位置にリセット
   if (isMoving) {
     resetToOriginalPositions();
   }
-
+  */
   // カメラの切り替え
   useCamera2 = !useCamera2;
   if (useCamera2) {
@@ -238,7 +242,6 @@ window.addEventListener('click', () => {
     activeCamera = camera;
   }
 });
-
 
 function resetToOriginalPositions() {
   const positions = geometry.attributes.position.array;
@@ -253,6 +256,66 @@ function resetToOriginalPositions() {
 
   // 更新フラグを立てる
   geometry.attributes.position.needsUpdate = true;
+}
+
+function resetParticleSystem() {
+  console.log('resetParticleSystem: パーティクルシステムのリセットが開始されました');
+
+  originalPositions.length = 0;
+  initialPositions.length = 0;
+
+  // 既存のパーティクルシステムをシーンから削除
+  if (pointsGroup) {
+    scene.remove(pointsGroup);  // 既存のグループをシーンから削除
+    console.log('resetParticleSystem: 既存のpointsGroupを削除しました');
+  }
+
+  const vertices = [];
+  const speeds = [];
+
+  // 新しいパーティクルの生成
+  for (let i = 0; i < 20000; i++) {
+    const x = THREE.MathUtils.randFloatSpread(3000);
+    const y = THREE.MathUtils.randFloatSpread(-1500, 0);
+    const z = THREE.MathUtils.randFloatSpread(3000);
+
+    vertices.push(x, y, z);
+
+    const vector = new THREE.Vector3(x, y, z);
+
+    // originalPositionsやinitialPositionsを更新または新しく追加
+    if (!originalPositions[i]) {
+      originalPositions.push(vector.clone());  // 初回は新しいクローンを追加
+    } else {
+      originalPositions[i].set(x, y, z);  // 既存のベクトルを更新
+    }
+
+    if (!initialPositions[i]) {
+      initialPositions.push(vector.clone());  // 初回は新しいクローンを追加
+    } else {
+      initialPositions[i].set(x, y, z);  // 既存のベクトルを更新
+    }
+
+    // 速度をランダムに設定 (0.5〜2.0の範囲でランダムに設定)
+    const speed = Math.random() * 0.9 + 0.1;
+    speeds.push(speed);
+  }
+
+  console.log('resetParticleSystem: 新しいパーティクルデータを生成しました');
+
+  // 新しいジオメトリとパーティクルシステムを作成
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setAttribute('speed', new THREE.Float32BufferAttribute(speeds, 1));
+
+  // pointsGroupを再生成
+  pointsGroup = new THREE.Group();  // グループを新しく作成
+  console.log('resetParticleSystem: 新しいpointsGroupを生成しました');
+
+  // パーティクルをシーンに追加
+  points = new THREE.Points(geometry, shaderMaterial);
+  pointsGroup.add(points);
+  scene.add(pointsGroup);  // 新しいグループをシーンに追加
+  console.log('resetParticleSystem: 新しいパーティクルシステムをシーンに追加しました');
 }
 
 const threshold = 0.01;
@@ -291,7 +354,7 @@ function animate() {
   } else if (!moveToShape) {
     // 初期位置に戻る処理
     for (let i = 0; i < positions.length / 3; i++) {
-      const target = originalPositions[i];  // 初期位置を取得
+      const target = initialPositions[i];  // 初期位置を取得
       const currentPos = new THREE.Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
 
       // 線形補間で徐々に初期位置に戻す
@@ -300,12 +363,9 @@ function animate() {
       positions[i * 3 + 1] = currentPos.y;
       positions[i * 3 + 2] = currentPos.z;
     }
+    //resetToOriginalPositions();  // 初期位置に強制リセット
     pointsGroup.rotation.y += 0.0001;
   }
-  
-  // カメラを滑らかに移動させる
-  currentCameraPosition.lerp(targetCameraPosition, 0.08);  // 0.05は補間速度
-  activeCamera.position.set(currentCameraPosition.x, currentCameraPosition.y, currentCameraPosition.z);
 
   geometry.attributes.position.needsUpdate = true;  // パーティクル位置の更新を通知
 

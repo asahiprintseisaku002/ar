@@ -139,7 +139,7 @@ const shaderMaterial = new THREE.ShaderMaterial({
 });
 
 // パーティクルを作成
-let originalPositions = []; 
+let initialPositions = []; 
 let svgPoints = [];
 let moveToShape = false;
 let isMoving = false;
@@ -152,10 +152,8 @@ for (let i = 0; i < 20000; i++) {
   const z = THREE.MathUtils.randFloatSpread(3000);
   vertices.push(x, y, z);
 
-  const vector = new THREE.Vector3(x, y, z);
-
-  // 読み込み時の位置として保存（移動後もこの位置に戻すため）
-  originalPositions.push(vector.clone());
+  // 初期位置を保存
+  initialPositions.push(new THREE.Vector3(x, y, z));
 
   // 速度をランダムに設定 (0.5〜2.0の範囲でランダムに設定)
   const speed = Math.random() * 0.9 + 0.1;
@@ -197,7 +195,7 @@ const backgroundMaterial = new THREE.ShaderMaterial({
 });
 
 // 背景用の大きな平面を作成
-const backgroundGeometry = new THREE.PlaneGeometry(50000, 50000);
+const backgroundGeometry = new THREE.PlaneGeometry(50000, 50000, 100, 100);
 const backgroundMesh = new THREE.Mesh(backgroundGeometry, backgroundMaterial);
 backgroundMesh.position.z = -100;
 scene.add(backgroundMesh);
@@ -211,49 +209,34 @@ async function loadAndAnimateSVG() {
   svgPoints = await getSVGPoints('./circleoflife.svg');  // SVGを読み込んで座標を取得
 }
 
+// クリックイベントを追加して、パーティクルの集合をトグルで切り替える
+window.addEventListener('click', () => {
+  moveToShape = !moveToShape;  // 集合状態をトグルで切り替え
+  isMoving = moveToShape;  // `moveToShape` に基づいて `isMoving` を切り替え
+  // トグルの際にシェーダー側の `isMoving` も更新
+  shaderMaterial.uniforms.isMoving.value = isMoving;
+});
+
 // カメラの補間用変数
 let currentCameraPosition = new THREE.Vector3(Three.camera.position.x, Three.camera.position.y, Three.camera.position.z);
 let targetCameraPosition = new THREE.Vector3(Three.camera.position.x, Three.camera.position.y, Three.camera.position.z);
 let activeCamera = camera;  // 初期状態はcamera1がアクティブ
 let useCamera2 = false;  // カメラ切り替え用のフラグ
 
+// クリックイベントを追加して、カメラの位置を切り替える
 window.addEventListener('click', () => {
-  // パーティクルの集合状態を切り替える
-  moveToShape = !moveToShape;
-  isMoving = moveToShape;
-  shaderMaterial.uniforms.isMoving.value = isMoving;
+  useCamera2 = !useCamera2;  // フラグをトグルしてカメラを切り替え
 
-  // isMovingがtrueになるときに読み込み時の初期位置にリセット
-  if (isMoving) {
-    resetToOriginalPositions();
-  }
-
-  // カメラの切り替え
-  useCamera2 = !useCamera2;
   if (useCamera2) {
+    // カメラ2の位置に補間して移動する
     targetCameraPosition.set(camera2.position.x, camera2.position.y, camera2.position.z);
-    activeCamera = camera2;
+    activeCamera = camera2;  // カメラ2をアクティブにする
   } else {
+    // カメラ1の位置に補間して戻す
     targetCameraPosition.set(camera.position.x, camera.position.y, camera.position.z);
-    activeCamera = camera;
+    activeCamera = camera;  // カメラ1をアクティブにする
   }
 });
-
-
-function resetToOriginalPositions() {
-  const positions = geometry.attributes.position.array;
-
-  // 読み込み時の初期位置に戻す処理
-  for (let i = 0; i < positions.length / 3; i++) {
-    const originalPos = originalPositions[i];  // 読み込み時の初期位置を取得
-    positions[i * 3] = originalPos.x;
-    positions[i * 3 + 1] = originalPos.y;
-    positions[i * 3 + 2] = originalPos.z;
-  }
-
-  // 更新フラグを立てる
-  geometry.attributes.position.needsUpdate = true;
-}
 
 const threshold = 0.01;
 
@@ -276,7 +259,7 @@ function animate() {
       // 目標位置までの距離を計算
       if (currentPos.distanceTo(target) > threshold) {
         // 線形補間で徐々に移動
-        currentPos.lerp(target, 0.08);  // 補間速度を調整
+        currentPos.lerp(target, 0.1);  // 補間速度を調整
         positions[i * 3] = currentPos.x;
         positions[i * 3 + 1] = currentPos.y;
         positions[i * 3 + 2] = currentPos.z;
@@ -287,24 +270,24 @@ function animate() {
         positions[i * 3 + 2] = target.z;
       }
     }
-    //pointsGroup.rotation.y = 0.0;
+    points.rotation.y = 0.0;
   } else if (!moveToShape) {
     // 初期位置に戻る処理
     for (let i = 0; i < positions.length / 3; i++) {
-      const target = originalPositions[i];  // 初期位置を取得
+      const target = initialPositions[i];  // 初期位置を取得
       const currentPos = new THREE.Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
 
       // 線形補間で徐々に初期位置に戻す
-      currentPos.lerp(target, 0.08);
+      currentPos.lerp(target, 0.1);
       positions[i * 3] = currentPos.x;
       positions[i * 3 + 1] = currentPos.y;
       positions[i * 3 + 2] = currentPos.z;
     }
-    pointsGroup.rotation.y += 0.0001;
+    points.rotation.y += 0.0001;
   }
-  
+
   // カメラを滑らかに移動させる
-  currentCameraPosition.lerp(targetCameraPosition, 0.08);  // 0.05は補間速度
+  currentCameraPosition.lerp(targetCameraPosition, 0.05);  // 0.05は補間速度
   activeCamera.position.set(currentCameraPosition.x, currentCameraPosition.y, currentCameraPosition.z);
 
   geometry.attributes.position.needsUpdate = true;  // パーティクル位置の更新を通知

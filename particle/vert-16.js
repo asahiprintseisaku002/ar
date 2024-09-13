@@ -18,6 +18,13 @@ void main() {
   // カーソルの3D位置（Z座標は0と仮定）
   vec3 mouse3D = vec3(mouse.x, mouse.y, 0.0);  // カーソルの位置を2Dから3Dに変換
 
+  // カーソルの位置に向かう方向を計算
+  vec3 direction = normalize(mouse3D - pos);  // カーソルに向かう方向を取得
+
+  // 引き寄せるスピードを設定
+  float attractionStrength = 2.4;  // 強制的にカーソルに集める速度
+  pos += direction * attractionStrength;  // パーティクルをカーソルに向かって移動させる
+
   // 目標位置への強制的な修正
   float correctionStrength = 0.2;  // 強制的に戻す強度（0.0〜1.0）
 
