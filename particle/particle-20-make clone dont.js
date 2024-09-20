@@ -161,8 +161,6 @@ let moveToShape = false;
 let isMoving = false;
 const vertices = [];
 const speeds = [];  // ランダムな速度を保持する配列
-const threshold = 1.0;  // スナップする距離の閾値を小さめに設定
-const springStrength = 0.15; // 吸着力の強さを設定（これを調整して動き方を変えられます）
 
 for (let i = 0; i < 20000; i++) {
   const x = THREE.MathUtils.randFloatSpread(3000);
@@ -225,7 +223,6 @@ const ambientLight = new THREE.AmbientLight(Three.light.ambient, 0.1);
 scene.add(ambientLight);
 
 // SVGポイントに基づいてパーティクルを生成するために、新しいパーティクルの数をSVGポイント数に合わせる
-// パーティクルを生成し、初期位置を保存
 async function loadAndAnimateSVG() {
   svgPoints = await getSVGPoints('./circleoflife.svg');  // SVGを読み込んで座標を取得
 
@@ -246,7 +243,7 @@ async function loadAndAnimateSVG() {
 
     const vector = new THREE.Vector3(x, y, z);
     originalPositions.push(vector.clone());  // 読み込み時の初期位置を保存
-    initialPositions.push(vector.clone());   // **すべての初期状態のクローンも保存**
+    initialPositions.push(vector.clone());   // 初期状態のクローンも作成
 
     // ランダムな速度を設定 (0.5〜2.0の範囲でランダム)
     const speed = Math.random() * 0.9 + 0.1;
@@ -256,7 +253,7 @@ async function loadAndAnimateSVG() {
   // ジオメトリを作成してシーンに追加
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
   geometry.setAttribute('speed', new THREE.Float32BufferAttribute(speeds, 1));
-  geometry.attributes.position.needsUpdate = true;  // 更新フラグを立てる
+  geometry.attributes.position.needsUpdate = true;
 
   // パーティクルの描画オブジェクトをシーンに追加
   scene.add(points);
@@ -274,6 +271,11 @@ window.addEventListener('click', () => {
   isMoving = moveToShape;
   shaderMaterial.uniforms.isMoving.value = isMoving;
 
+  // isMovingがtrueになるときに読み込み時の初期位置にリセット
+  if (isMoving) {
+    resetToOriginalPositions();
+  }
+
   // カメラの切り替え
   useCamera2 = !useCamera2;
   if (useCamera2) {
@@ -284,6 +286,9 @@ window.addEventListener('click', () => {
     activeCamera = camera;
   }
 });
+
+const threshold = 1.0;  // スナップする距離の閾値を小さめに設定
+const springStrength = 0.15; // 吸着力の強さを設定（これを調整して動き方を変えられます）
 
 // アニメーション処理
 function animate() {

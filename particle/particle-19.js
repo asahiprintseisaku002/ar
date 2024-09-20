@@ -155,14 +155,11 @@ const shaderMaterial = new THREE.ShaderMaterial({
 
 // パーティクルを作成
 let originalPositions = []; 
-let initialPositions = []; 
 let svgPoints = [];
 let moveToShape = false;
 let isMoving = false;
 const vertices = [];
 const speeds = [];  // ランダムな速度を保持する配列
-const threshold = 1.0;  // スナップする距離の閾値を小さめに設定
-const springStrength = 0.15; // 吸着力の強さを設定（これを調整して動き方を変えられます）
 
 for (let i = 0; i < 20000; i++) {
   const x = THREE.MathUtils.randFloatSpread(3000);
@@ -224,42 +221,12 @@ scene.add(backgroundMesh);
 const ambientLight = new THREE.AmbientLight(Three.light.ambient, 0.1);
 scene.add(ambientLight);
 
-// SVGポイントに基づいてパーティクルを生成するために、新しいパーティクルの数をSVGポイント数に合わせる
-// パーティクルを生成し、初期位置を保存
+// SVGの座標を非同期で読み込む
 async function loadAndAnimateSVG() {
   svgPoints = await getSVGPoints('./circleoflife.svg');  // SVGを読み込んで座標を取得
 
-  const numParticles = svgPoints.length;  // SVGポイント数に基づいてパーティクル数を設定
-
-  const vertices = [];
-  const speeds = [];
-  originalPositions = [];
-  initialPositions = [];  // 初期状態を保存する配列を初期化
-
-  // パーティクルを生成し、初期位置を保存
-  for (let i = 0; i < numParticles; i++) {
-    const x = THREE.MathUtils.randFloatSpread(3000);
-    const y = THREE.MathUtils.randFloatSpread(-1500, 0);
-    const z = THREE.MathUtils.randFloatSpread(3000);
-
-    vertices.push(x, y, z);
-
-    const vector = new THREE.Vector3(x, y, z);
-    originalPositions.push(vector.clone());  // 読み込み時の初期位置を保存
-    initialPositions.push(vector.clone());   // **すべての初期状態のクローンも保存**
-
-    // ランダムな速度を設定 (0.5〜2.0の範囲でランダム)
-    const speed = Math.random() * 0.9 + 0.1;
-    speeds.push(speed);
-  }
-
-  // ジオメトリを作成してシーンに追加
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  geometry.setAttribute('speed', new THREE.Float32BufferAttribute(speeds, 1));
-  geometry.attributes.position.needsUpdate = true;  // 更新フラグを立てる
-
-  // パーティクルの描画オブジェクトをシーンに追加
-  scene.add(points);
+  // SVGの座標が読み込まれた後、初期位置をリセット
+  resetToOriginalPositions();
 }
 
 // カメラの補間用変数
@@ -274,6 +241,11 @@ window.addEventListener('click', () => {
   isMoving = moveToShape;
   shaderMaterial.uniforms.isMoving.value = isMoving;
 
+  // isMovingがtrueになるときに読み込み時の初期位置にリセット
+  if (isMoving) {
+    resetToOriginalPositions();
+  }
+
   // カメラの切り替え
   useCamera2 = !useCamera2;
   if (useCamera2) {
@@ -285,7 +257,9 @@ window.addEventListener('click', () => {
   }
 });
 
-// アニメーション処理
+const threshold = 1.0;  // スナップする距離の閾値を小さめに設定
+const springStrength = 0.15; // 吸着力の強さを設定（これを調整して動き方を変えられます）
+
 function animate() {
   requestAnimationFrame(animate);
 
@@ -297,13 +271,14 @@ function animate() {
   if (moveToShape && svgPoints.length > 0) {
     // SVGの形に集合する処理
     for (let i = 0; i < positions.length / 3; i++) {
-      const target = svgPoints[i];  // SVGのポイントを取得
+      const target = svgPoints[i % svgPoints.length];  // SVGのポイントをループで取得
       const currentPos = new THREE.Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
 
+      // 目標位置までの距離を計算
       const distance = currentPos.distanceTo(target);
 
-      if (distance > 0.1) {
-        // 距離がある場合は吸着力を使って移動
+      if (distance > threshold) {
+        // 距離が遠い場合は吸着力を使って動かす
         const force = target.clone().sub(currentPos).multiplyScalar(springStrength);
         currentPos.add(force);
         positions[i * 3] = currentPos.x;
@@ -316,35 +291,32 @@ function animate() {
         positions[i * 3 + 2] = target.z;
       }
     }
+    // pointsGroup.rotation.y = 0.0; // 任意で回転を止める
   } else if (!moveToShape) {
     // 初期位置に戻る処理
     for (let i = 0; i < positions.length / 3; i++) {
-      const target = initialPositions[i];  // 初期状態のクローンを取得
+      const target = originalPositions[i];  // 初期位置を取得
       const currentPos = new THREE.Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
 
-      const distance = currentPos.distanceTo(target);
-
-      if (distance > 0.1) {
-        // 距離がある場合は吸着力を使って移動
-        const force = target.clone().sub(currentPos).multiplyScalar(springStrength);
-        currentPos.add(force);
-        positions[i * 3] = currentPos.x;
-        positions[i * 3 + 1] = currentPos.y;
-        positions[i * 3 + 2] = currentPos.z;
-      } else {
-        // 近づいたらスナップ
-        positions[i * 3] = target.x;
-        positions[i * 3 + 1] = target.y;
-        positions[i * 3 + 2] = target.z;
-      }
+      // 線形補間で徐々に初期位置に戻す
+      currentPos.lerp(target, 0.08);
+      positions[i * 3] = currentPos.x;
+      positions[i * 3 + 1] = currentPos.y;
+      positions[i * 3 + 2] = currentPos.z;
     }
+    pointsGroup.rotation.y += 0.0001;
   }
 
+  // カメラの位置を滑らかに補間
+  currentCameraPosition.lerp(targetCameraPosition, 0.08);
+  activeCamera.position.set(currentCameraPosition.x, currentCameraPosition.y, currentCameraPosition.z);
+
   geometry.attributes.position.needsUpdate = true;  // パーティクル位置の更新を通知
-  renderer.render(scene, activeCamera);  // アクティブカメラでレンダリング
+
+  // アクティブなカメラでレンダリング
+  renderer.render(scene, activeCamera);
 }
 
-// SVGの座標を読み込んでパーティクルを生成
 loadAndAnimateSVG();
 animate();
 

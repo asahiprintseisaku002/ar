@@ -3,165 +3,215 @@
  //
  //
  //
-    import * as THREE from "three";
-    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-    //import { FontLoader } from "three/addons/loaders/FontLoader.js";
-    //import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
-    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-    import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
-    import { TransformControls } from 'three/addons/controls/TransformControls.js';
-    import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+ import * as THREE from "three";
+ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+ import { fragmentShader } from "./change.js";
+ import { vertexShader } from "./vert.js";
 
-    class Three {
-        static width = window.innerWidth;
-        static height = window.innerHeight;
-        static canvasId = '#myCanvas';
-        static camera = {
-          fov: 45,
-          aspect: window.innerWidth / window.innerHeight,
-          position: { x: 0, y: 10, z: 0 }
-        };
-        static light = {
-          ambient: 0xffffff,
-          // directional: 0xffffff,
-          // directionalPosition: { x: 1, y: 1, z: 1 }
-        };
-        static material = {
-          color: 0xf8f8f8
-        };
+ class Three {
+     static width = window.innerWidth;
+     static height = window.innerHeight;
+     static canvasId = '#myCanvas';
+     static camera = {
+       fov: 45,
+       aspect: window.innerWidth / window.innerHeight,
+       position: { x: 0, y: 0, z: 9.5 }
+     };
+     static light = {
+       ambient: 0xffffff,
+       // directional: 0xffffff,
+       // directionalPosition: { x: 1, y: 1, z: 1 }
+     };
+     static material = {
+       color: 0xffffff,
+       side: THREE.DoubleSide
+     };
 
-    }
+ }
 
-    
-    // レンダラーを作成
-    const canvasElement = document.querySelector(Three.canvasId);
-    const renderer = new THREE.WebGLRenderer({
-    canvas: canvasElement, 
-    alpha: false
-    });
-    renderer.setSize(Three.width, Three.height);
+ 
+ // レンダラーを作成
+ const canvasElement = document.querySelector(Three.canvasId);
+ const renderer = new THREE.WebGLRenderer({
+   canvas: canvasElement,
+   alpha: false
+ });
+ renderer.setClearColor(0x080808, 1);
+ renderer.setSize(Three.width, Three.height);
 
-    // シーンを作成
-    const scene = new THREE.Scene();
+ // シーンを作成
+ const scene = new THREE.Scene();
 
-    // カメラを作成
-    const camera = new THREE.PerspectiveCamera(Three.camera.fov, Three.camera.aspect);
-    // カメラの初期座標を設定
-    camera.position.set(Three.camera.position.x, Three.camera.position.y, Three.camera.position.z);
+ // カメラを作成
+ const camera = new THREE.PerspectiveCamera(Three.camera.fov, Three.camera.aspect);
+ // カメラの初期座標を設定
+ camera.position.set(Three.camera.position.x, Three.camera.position.y, Three.camera.position.z);
+ camera.lookAt(new THREE.Vector3(0, 0, 0));
 
-    // カメラコントローラーを作成
-    const controls = new OrbitControls(camera, canvasElement);
+ // カメラコントローラーを作成
+ //const controls = new OrbitControls(camera, canvasElement);
 
-    // 画像を読み込む
-    const loadPic = new THREE.TextureLoader();
-    //レイキャスター 
-    const raycaster = new THREE.Raycaster();
-    const pointer = new THREE.Vector2();
-    const mouse = new THREE.Vector2();
+// ビデオエレメントを作成
+const video = document.createElement('video');
+video.src = './bk-movie.mp4'; // 動画ファイルのパスを指定
+video.load();
+video.autoplay = true; // 自動再生を設定
+video.playsInline = true;
+video.loop = true; // ループを設定
+video.muted = true; // 音声をミュートに設定
 
-    function handleMouseMove(event) {
-    const element = event.currentTarget;
-    // canvas要素上のXY座標
-    const x = event.clientX - element.offsetLeft;
-    const y = event.clientY - element.offsetTop;
-    // canvas要素の幅・高さ
-    const w = element.offsetWidth;
-    const h = element.offsetHeight;
+video.addEventListener('canplaythrough', () => {
+  video.play();
+});
 
-    // -1〜+1の範囲で現在のマウス座標を登録する
-    mouse.x = ( x / w ) * 2 - 1;
-    mouse.y = -( y / h ) * 2 + 1;
-    }
+const videoTexture = new THREE.VideoTexture(video);
 
-      //ライト
-    const ambientLight = new THREE.AmbientLight(Three.light.ambient); 
-    //const directionalLight1 = new THREE.DirectionalLight(0xffffff);
-    //directionalLight1.position.set(1, 1, 1);
+// テクスチャを読み込む
+const textureLoader = new THREE.TextureLoader();
+const texturePromises = [
+    Promise.resolve(videoTexture), // ビデオテクスチャはすでに作成済み
+    textureLoader.loadAsync('./bk1.jpg'),
+    textureLoader.loadAsync('./bk2.jpg'),
+    textureLoader.loadAsync('./bk3.jpg'),
+    textureLoader.loadAsync('./bk4.jpg'),
+    textureLoader.loadAsync('./bk5.jpg'),
+    textureLoader.loadAsync('./bk6.jpg')
+];
 
-    // シーンに追加
-    scene.add(ambientLight);
-    //scene.add(directionalLight1);
+Promise.all(texturePromises).then((textures) => {
+    let currentTextureIndex = 0;
+ 
+ // シェーダーマテリアルを作成
+ const shaderMaterial = new THREE.ShaderMaterial({
+ 
+ uniforms: {
+     time: { value: 1.0 },
+     resolution: { value: new THREE.Vector4() },
+     texture1: { value: textures[currentTextureIndex] },
+     texture2: { value: textures[(currentTextureIndex +1 ) % textures.length] },
+     progress: { type: "f", value: 0 },
+     intensity: { type: "f", value: 0 },
+     width: { type: "f", value: 0 },
+     scaleX: { type: "f", value: 40 },
+     scaleY: { type: "f", value: 40 },
+     transition: { type: "f", value: 40 },
+     radius: { type: "f", value: 0 },
+     swipe: { type: "f", value: 0 },
+     displacement: { type: "f", value: currentTextureIndex },
+ },
+ fragmentShader: fragmentShader,
+ vertexShader: vertexShader,
+ 
+ });
 
-    const modelGroup = new THREE.Group();
-    scene.add(modelGroup);
+ const planeGeometry = new THREE.PlaneGeometry(16, 9);
+ //const material = new THREE.MeshBasicMaterial(Three.material.color, Three.material.side);
+ const plane = new THREE.Mesh(planeGeometry, shaderMaterial);
+ scene.add(plane);
 
-    const loader = new GLTFLoader();
-    const gltf = await loader.loadAsync('./bk.glb');
-    const model = gltf.scene;
-    scene.add(model);
-    modelGroup.add(model);
-  
-    const mixer = new THREE.AnimationMixer(model);
-    // モデルに含まれるアニメーションクリップを取得
-    const clips = gltf.animations;
-    const action = mixer.clipAction(clips[0]); // 最初のアニメーションクリップを使用
+ //ライト
+ const ambientLight = new THREE.AmbientLight(Three.light.ambient); 
 
-    // アニメーションのループを無効にし、終了後に停止するように設定
-    action.setLoop(THREE.LoopOnce);
-    action.clampWhenFinished = true;
+ // シーンに追加
+ scene.add(ambientLight);
+ //scene.add(directionalLight1);
 
-    const clock = new THREE.Clock;
-    // 初期カメラ位置を設定
-    //const initialCameraPosition = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
 
-    action.play();
+ let startTime = null;
+ let duration = 1.2; // アニメーションの持続時間（秒）
+ // アニメーション関数を作成
+ function animate(time) {
+   requestAnimationFrame(animate);
 
-    // マウスの移動を監視するイベントリスナーを追加
-    window.addEventListener('mousemove', onMouseMove, false);
+   videoTexture.needsUpdate = true;
 
-    function onMouseMove(event) {
-        // マウスのx座標を正規化
-        const normalizedX = (event.clientX / window.innerWidth) * 2 - 1;
+   if (startTime !== null) {
+     let elapsedTime = (time - startTime) / 1000; // 経過時間（秒）
+     shaderMaterial.uniforms.progress.value = Math.min(elapsedTime / duration, 1.0);
+     if (elapsedTime >= duration) {
+       startTime = null; // アニメーション終了
+       shaderMaterial.uniforms.texture1.value = shaderMaterial.uniforms.texture2.value; // テクスチャを切り替え
+       shaderMaterial.uniforms.progress.value = 0.0; // progressをリセット
+       currentTextureIndex = (currentTextureIndex + 1) % textures.length; // 次のテクスチャインデックスに更新
+       shaderMaterial.uniforms.texture2.value = textures[(currentTextureIndex + 1) % textures.length]; // 次のテクスチャを設定
+     }
+   }
+ 
+   shaderMaterial.uniforms.time.value += 0.05;
+   
+   renderer.render(scene, camera);
+ }
 
-        // 符号を無視して絶対値を取得
-        const absNormalizedX = Math.abs(normalizedX);
+ animate();
 
-        // 0.3から0.8の範囲に入っているかチェック
-        if (absNormalizedX >= 0.2 && absNormalizedX <= 0.5) {
-            // アニメーションの進行度を計算
-            const progress = (absNormalizedX - 0.2) / (0.5 - 0.2);
-            //model.rotation.z = progress * Math.PI ;           
-            // アニメーションの進行度に応じてアニメーションを設定
-            action.time = progress * action.getClip().duration;
-            action.paused = true;
-        } else {
-            action.paused = true;
-          
-        }
-    }
+ // 初期化のために実行
+ onResize();
+ // リサイズイベント発生時に実行
+ window.addEventListener("resize", onResize);
 
-    
-        // アニメーション関数を作成
-    function animate() {
-      requestAnimationFrame(animate);
+ function onResize() {
+     // サイズを取得
+     const width = window.innerWidth;
+     const height = window.innerHeight;
 
-      // アニメーションミキサーを更新
-      const delta = clock.getDelta();
-      mixer.update(delta);
-      
-      // 球体を回転させる
-      //modelGroup.rotation.z += 0.01;
-      
-      renderer.render(scene, camera);
-    }
+     // レンダラーのサイズを調整する
+     renderer.setPixelRatio(window.devicePixelRatio);
+     renderer.setSize(width, height);
 
-    animate();
+     // カメラのアスペクト比を正す
+     camera.aspect = width / height;
+     camera.updateProjectionMatrix();
+     shaderMaterial.uniforms.resolution.value.set(width, height);
+ }
 
-      // 初期化のために実行
-      onResize();
-      // リサイズイベント発生時に実行
-      window.addEventListener("resize", onResize);
+ // Intersection Observerを設定
+ const targetElements = [
+   //document.querySelector('.target-element0'),
+   document.querySelector('.target-element1'),
+   document.querySelector('.target-element2'),
+   document.querySelector('.target-element3'),
+   document.querySelector('.target-element4'),
+   document.querySelector('.target-element5'),
+   document.querySelector('.target-element6')
+ ];
 
-      function onResize() {
-        // サイズを取得
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+ const observerOptions = {
+  root: null, // ビューポートをルートに設定
+  rootMargin: '0px', // マージンを設定
+  threshold: 0.5 // 50% 以上表示された場合に交差を検出
+};
 
-        // レンダラーのサイズを調整する
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(width, height);
+ const observer = new IntersectionObserver((entries) => {
+     entries.forEach(entry => {
+         if (entry.isIntersecting) {
+             const className = entry.target.className; // ターゲット要素のクラス名を取得
+             const index = targetElements.findIndex(element => element.className === className); // クラス名に基づいてインデックスを取得
+             if (index !== -1) {
+                 currentTextureIndex = index + 1; // インデックスに基づいてテクスチャインデックスを更新
+                 shaderMaterial.uniforms.texture2.value = textures[currentTextureIndex]; // 対応する画像を設定
+                 startTime = performance.now(); // アニメーションを開始
+             }
+         } else {
+             const className = entry.target.className; // ターゲット要素のクラス名を取得
+             const index = targetElements.findIndex(element => element.className === className); // クラス名に基づいてインデックスを取得
+             if (index !== -1 && currentTextureIndex > index) {
+                 currentTextureIndex = index; // インデックスに基づいてテクスチャインデックスを更新
+                 shaderMaterial.uniforms.texture2.value = textures[currentTextureIndex]; // 対応する画像を設定
+                 startTime = performance.now(); // アニメーションを開始
+             }
+         }
+     });
+ }, observerOptions);
 
-        // カメラのアスペクト比を正す
-        camera.aspect = width / height;
-        camera.updateProjectionMatrix();
-      }
+ 
+ // すべての要素に対してobserveを呼び出す
+ targetElements.forEach(element => {
+     observer.observe(element);
+ });
+ 
+ window.addEventListener('message', (event) => {
+    const scrollPosition = event.data;
+    window.scrollTo(0, scrollPosition);
+});
+
+});

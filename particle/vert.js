@@ -15,18 +15,6 @@ void main() {
   // パーティクルの位置を取得
   vec3 pos = position;
 
-  // カーソルの3D位置（Z座標は0と仮定）
-  vec3 mouse3D = vec3(mouse.x, mouse.y, 0.0);  // カーソルの位置を2Dから3Dに変換
-
-  // 目標位置への強制的な修正
-  float correctionStrength = 0.2;  // 強制的に戻す強度（0.0〜1.0）
-
-  if (!isMoving) {
-    // 目標位置と現在位置のズレを計算し、強制的に補正
-    vec3 correction = targetPosition - pos;
-    pos += correction * correctionStrength;  // 位置を補正
-  }
-
   //ランダムな速度に基づいて y 座標を時間とともに上昇させる
   //pos.y += mod(time * speed + position.y, 200.0);  // speedを使用して個別に速度を変更
   pos.y += time * speed + position.y;
