@@ -1,0 +1,25 @@
+* {
+  margin: 0;
+  box-sizing: border-box;
+}
+
+#myCanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+body {
+  overflow-x: hidden;
+  overflow-y: scroll;
+  -ms-overflow-style: none;
+}
+
+body::-webkit-scrollbar {
+  display: none;
+}
+
+.full-height {
+  width: 100vw;
+  height: 100vh;
+}
