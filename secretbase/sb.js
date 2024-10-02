@@ -5,6 +5,8 @@
  //
  import * as THREE from "three";
  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+ import { fragmentShader } from "./frag.js";
+ import { vertexShader } from "./vert.js";
 
  class Three {
      static width = window.innerWidth;
@@ -50,26 +52,49 @@
  const controls = new OrbitControls(camera, canvasElement);
 
 // ビデオエレメントを作成
-const video = document.createElement('video');
-video.src = './sb-movie.mp4'; // 動画ファイルのパスを指定
-video.load();
-video.autoplay = true; // 自動再生を設定
-video.playsInline = true;
-video.loop = true; // ループを設定
-video.muted = true; // 音声をミュートに設定
+const video1 = document.createElement('video');
+video1.src = './sb-movie.mp4'; // 動画ファイルのパスを指定
+video1.load();
+video1.autoplay = true; // 自動再生を設定
+video1.playsInline = true;
+video1.loop = true; // ループを設定
+video1.muted = true; // 音声をミュートに設定
 
-video.addEventListener('canplaythrough', () => {
-  video.play();
+const video2 = document.createElement('video');
+video2.src = './sb-movie-sample02';  // 動画2のパス
+video2.load();
+video2.autoplay = true;
+video2.loop = true;
+video2.muted = true;
+
+video1.addEventListener('canplaythrough', () => {
+  video1.play();
 });
 
-const videoTexture = new THREE.VideoTexture(video);
+video2.addEventListener('canplaythrough', () => {
+  video2.play();
+});
+
+const videoTexture1 = new THREE.VideoTexture(video1);
+const videoTexture2 = new THREE.VideoTexture(video2);
+
+const shaderMaterial = new THREE.ShaderMaterial({
+  uniforms: {
+    videoTexture1: { value: videoTexture1 },  // 動画1のテクスチャ
+    videoTexture2: { value: videoTexture2 },  // 動画2のテクスチャ
+    time: { value: 0.0 }  // 時間をシェーダーに渡す
+  },
+  vertexShader: vertexShader,
+  fragmentShader: fragmentShader,
+  side: THREE.DoubleSide
+});
 
 // テクスチャを読み込む
 //const textureLoader = new THREE.TextureLoader();
-const planeMaterial = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide });
+//const planeMaterial = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide });
 const planeGeometry = new THREE.PlaneGeometry(16, 9);
 //const material = new THREE.MeshBasicMaterial(Three.material.color, Three.material.side);
-const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+const plane = new THREE.Mesh(planeGeometry, shaderMaterial);
 plane.position.set(-5.0, 0.0, -10.0);
 plane.rotation.y = 0.5;
 scene.add(plane);
@@ -84,6 +109,8 @@ scene.add(plane);
  // アニメーション関数を作成
  function animate(time) {
    requestAnimationFrame(animate);
+
+   shaderMaterial.uniforms.time.value = time * 0.001;
    
    renderer.render(scene, camera);
  }
